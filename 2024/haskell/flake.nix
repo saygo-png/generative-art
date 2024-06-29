@@ -14,10 +14,20 @@
     devShells = {
       x86_64-linux.default = pkgs.mkShell {
         packages = with pkgs; [
-          haskellPackages.gloss
-          ghc
+          # We specify packages here
+          cabal-install
           ghcid
           haskell-language-server
+          (
+            pkgs.haskellPackages.ghcWithPackages (
+              haskellPackages:
+                with haskellPackages; [
+                  # We specify hackage packages here
+                  GLUT
+                  gloss
+                ]
+            )
+          )
         ];
       };
     };
