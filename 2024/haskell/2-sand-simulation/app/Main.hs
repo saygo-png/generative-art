@@ -1,34 +1,20 @@
 import Graphics.Gloss qualified as G
+import Graphics.Gloss.Data.ViewPort
 
 window :: G.Display
 window = G.InWindow "Pong" (width, height) (offset, offset)
 
-width, height, offset :: Int
+width, height, offset, fps :: Int
 width = 500
 height = 500
 offset = 0
+fps = 144
 
 background :: G.Color
 background = G.makeColorI 40 40 40 255
 
 main :: IO ()
-main = G.animate window background frame
-  where
-    frame :: Float -> G.Picture
-    frame seconds = render $ moveBall seconds initialState
-
--- | Data describing the state of the pong game.
-data PongGame = Game
-  { -- | Pong ball (x, y) location.
-    ballLoc :: (Float, Float),
-    -- | Pong ball (x, y) velocity.
-    ballVel :: (Float, Float),
-    -- | Left player paddle height. Zero is the middle of the screen.
-    player1 :: Float,
-    -- | Right player paddle height.
-    player2 :: Float
-  }
-  deriving (Show)
+main = G.simulate window background fps initialState render update
 
 -- | The starting state for the game of Pong.
 initialState :: PongGame
@@ -39,6 +25,9 @@ initialState =
       player1 = 40,
       player2 = -80
     }
+
+update :: ViewPort -> Float -> PongGame -> PongGame
+update _ = moveBall
 
 -- | Convert a game state into a picture.
 render ::
@@ -97,3 +86,16 @@ moveBall seconds game = game {ballLoc = (x', y')}
     -- New locations.
     x' = x + vx * seconds
     y' = y + vy * seconds
+
+-- | Data describing the state of the pong game.
+data PongGame = Game
+  { -- | Pong ball (x, y) location.
+    ballLoc :: (Float, Float),
+    -- | Pong ball (x, y) velocity.
+    ballVel :: (Float, Float),
+    -- | Left player paddle height. Zero is the middle of the screen.
+    player1 :: Float,
+    -- | Right player paddle height.
+    player2 :: Float
+  }
+  deriving (Show)
