@@ -1,5 +1,6 @@
 import Graphics.Gloss qualified as G
-import Graphics.Gloss.Data.ViewPort
+import Graphics.Gloss.Interface.Pure.Game
+import qualified Data.Set as S
 
 -- Settings --
 width, height, offset, fps :: Int
@@ -37,21 +38,11 @@ background :: G.Color
 background = G.makeColorI 40 40 40 255
 
 main :: IO ()
-main = G.simulate window background fps initialState render update
-
--- | The starting state for the game of Pong.
-initialState :: PongGame
-initialState =
-  Game
-    { ballLoc = (0, 20),
-      ballVel = (-300, 300),
-      player1 = 40,
-      player2 = -80
-    }
+main = play window background fps initialState render handleKeys update
 
 -- | Update the game state.
-update :: ViewPort -> Float -> PongGame -> PongGame
-update _ seconds = paddleBounce . wallBounce . moveBall seconds
+update :: Float -> PongGame -> PongGame
+update seconds = paddleBounce . wallBounce . moveBall seconds
 
 -- | Convert a game state into a picture.
 render ::
@@ -153,6 +144,35 @@ wallCollision (_, y) = topCollision || bottomCollision
     topCollision = y - radius <= -(wallDistance - wallThickness / 2)
     bottomCollision = y + radius >= wallDistance - wallThickness / 2
 
+-- moveDown :: PongGame -> PongGame
+-- moveDown
+--
+
+-- | Respond to key events.
+handleKeys :: Event -> PongGame -> PongGame
+-- For an 's' keypress, reset the ball to the center.
+handleKeys (EventKey (Char 'j') Down _ _) game =
+  game { keys = S.insert (Char 'j') (keys game)}
+handleKeys (EventKey (Char 'j') Up _ _) game =
+  game { keys = S.delete (Char 'j') (keys game)}
+  -- game {player1 = y'}
+  -- where
+  --   y = player1 game
+  --
+  --   y' =
+  --     if wallCollision (1.0, player1 game)
+  --       then -- Update the velocity.
+  --         y
+  --       else -- Do nothing. Return the old velocity.
+  --         y - 5
+
+handleKeys (EventKey (Char 'k') Down _ _) game =
+  game { keys = S.insert (Char 'k') (keys game)}
+handleKeys (EventKey (Char 'k') Up _ _) game =
+  game { keys = S.delete (Char 'k') (keys game)}
+-- Do nothing for all other events.
+handleKeys _ game = game
+
 -- | Data describing the state of the pong game.
 data PongGame = Game
   { -- | Pong ball (x, y) location.
@@ -162,6 +182,19 @@ data PongGame = Game
     -- | Left player paddle height.
     player1 :: Float,
     -- | Right player paddle height.
-    player2 :: Float
+    player2 :: Float,
+    -- | Which keys are pressed.
+    keys :: S.Set Key
   }
   deriving (Show)
+
+-- | The starting state for the game of Pong.
+initialState :: PongGame
+initialState =
+  Game
+    { ballLoc = (0, 20),
+      ballVel = (-300, 300),
+      player1 = 40,
+      player2 = -80,
+      keys = S.empty
+    }

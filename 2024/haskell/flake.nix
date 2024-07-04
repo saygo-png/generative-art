@@ -20,6 +20,7 @@
                 # We packages here, so ghc knows about them.
                 haskellPackages.GLUT
                 haskellPackages.gloss
+                haskellPackages.containers
                 haskellPackages.haskell-language-server
                 ghcid
                 cabal-install
