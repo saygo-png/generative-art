@@ -1,6 +1,6 @@
+import Data.Set qualified as S
 import Graphics.Gloss qualified as G
 import Graphics.Gloss.Interface.Pure.Game
-import qualified Data.Set as S
 
 -- Settings --
 width, height, offset, fps :: Int
@@ -42,7 +42,7 @@ main = play window background fps initialState render handleKeys update
 
 -- | Update the game state.
 update :: Float -> PongGame -> PongGame
-update seconds = paddleBounce . wallBounce . moveBall seconds
+update seconds game = movePaddle seconds $ paddleBounce $ wallBounce $ moveBall seconds game
 
 -- | Convert a game state into a picture.
 render ::
@@ -77,6 +77,29 @@ render game =
     mkPaddle paddleColor x y =
       G.pictures [G.translate x y $ G.color paddleColor $ G.rectangleSolid paddleThickness paddleLength]
 
+-- | Update the paddle position using its current velocity.
+movePaddle ::
+  -- | The number of seconds since last update
+  Float ->
+  -- | The initial game state
+  PongGame ->
+  -- | A new game state with an updated ball position
+  PongGame
+movePaddle seconds game
+  | S.member (Char 'j') (keys game) =
+      if paddleWallCollisionTop $ player1 game
+        then -- Do nothing
+          game
+        else -- Update position
+          game {player1 = player1 game - 400 * seconds}
+  | S.member (Char 'k') (keys game) =
+      if paddleWallCollisionBottom $ player1 game
+        then -- Do nothing
+          game
+        else -- Update position
+          game {player1 = player1 game + 400 * seconds}
+  | otherwise = game
+
 -- | Update the ball position using its current velocity.
 moveBall ::
   -- | The number of seconds since last update
@@ -109,7 +132,7 @@ paddleBounce game = game {ballVel = (vx', vy)}
     (vx, vy) = ballVel game
 
     vx' =
-      if paddleCollision $ ballLoc game
+      if paddleCollision game
         then -- Update the velocity.
           -vx
         else -- Do nothing. Return the old velocity.
@@ -131,11 +154,19 @@ wallBounce game = game {ballVel = (vx, vy')}
           vy
 
 -- | Given position and radius of the ball and the distance between paddles, return whether a collision occurred.
-paddleCollision :: Position -> Bool
-paddleCollision (x, _) = leftCollision || rightCollision
+paddleCollision :: PongGame -> Bool
+paddleCollision game = leftCollision || rightCollision
   where
-    leftCollision = x - radius <= -(paddleDistance - paddleThickness / 2)
-    rightCollision = x + radius >= paddleDistance - paddleThickness / 2
+    (ballX, ballY) = ballLoc game
+    y = player1 game
+    leftCollision =
+      if ballY >= (y - paddleLength / 2)
+        then ballX - radius <= -(paddleDistance - paddleThickness / 2)
+        else False
+    rightCollision =
+      if ballY <= -(y - paddleLength / 2)
+        then ballX + radius >= (paddleDistance - paddleThickness / 2)
+        else False
 
 -- | Given position and radius of the ball, return whether a collision occurred.
 wallCollision :: Position -> Bool
@@ -144,32 +175,42 @@ wallCollision (_, y) = topCollision || bottomCollision
     topCollision = y - radius <= -(wallDistance - wallThickness / 2)
     bottomCollision = y + radius >= wallDistance - wallThickness / 2
 
--- moveDown :: PongGame -> PongGame
--- moveDown
---
+-- | Given position and length of the paddle, return whether a top collision occurred.
+paddleWallCollisionTop :: Float -> Bool
+paddleWallCollisionTop paddleY = topCollision
+  where
+    topCollision = paddleY - paddleLength / 2 <= -(wallDistance - wallThickness / 2)
+
+-- | Given position and length of the paddle, return whether a bottom collision occurred.
+paddleWallCollisionBottom :: Float -> Bool
+paddleWallCollisionBottom paddleY = bottomCollision
+  where
+    bottomCollision = paddleY + paddleLength / 2 >= wallDistance - wallThickness / 2
 
 -- | Respond to key events.
 handleKeys :: Event -> PongGame -> PongGame
--- For an 's' keypress, reset the ball to the center.
-handleKeys (EventKey (Char 'j') Down _ _) game =
-  game { keys = S.insert (Char 'j') (keys game)}
-handleKeys (EventKey (Char 'j') Up _ _) game =
-  game { keys = S.delete (Char 'j') (keys game)}
-  -- game {player1 = y'}
-  -- where
-  --   y = player1 game
-  --
-  --   y' =
-  --     if wallCollision (1.0, player1 game)
-  --       then -- Update the velocity.
-  --         y
-  --       else -- Do nothing. Return the old velocity.
-  --         y - 5
 
+-- | Move down on j.
+handleKeys (EventKey (Char 'j') Down _ _) game =
+  game {keys = S.insert (Char 'j') (keys game)}
+handleKeys (EventKey (Char 'j') Up _ _) game =
+  game {keys = S.delete (Char 'j') (keys game)}
+-- game {player1 = y'}
+-- where
+--   y = player1 game
+--
+--   y' =
+--     if wallCollision (1.0, player1 game)
+--       then -- Update the velocity.
+--         y
+--       else -- Do nothing. Return the old velocity.
+--         y - 5
+
+-- \| Move up on k.
 handleKeys (EventKey (Char 'k') Down _ _) game =
-  game { keys = S.insert (Char 'k') (keys game)}
+  game {keys = S.insert (Char 'k') (keys game)}
 handleKeys (EventKey (Char 'k') Up _ _) game =
-  game { keys = S.delete (Char 'k') (keys game)}
+  game {keys = S.delete (Char 'k') (keys game)}
 -- Do nothing for all other events.
 handleKeys _ game = game
 
