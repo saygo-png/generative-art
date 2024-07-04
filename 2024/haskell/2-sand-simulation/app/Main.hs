@@ -1,4 +1,5 @@
 import Data.Set qualified as S
+import GHC.Ix (Ix (inRange))
 import Graphics.Gloss qualified as G
 import Graphics.Gloss.Interface.Pure.Game
 
@@ -18,7 +19,7 @@ radius = 10
 wallDistance = 240
 
 -- | Distance between the paddles.
-paddleDistance = 200
+paddleDistance = 245
 
 -- | Paddle thickness.
 paddleThickness = 10
@@ -54,10 +55,11 @@ render game =
   G.pictures
     [ ball,
       walls,
-      mkPaddle (G.makeColorI 254 128 25 255) (-paddleDistance) $ player1 game,
-      mkPaddle (G.makeColorI 184 187 38 255) paddleDistance $ player2 game
+      mkPaddle (G.makeColorI 254 128 25 255) paddleThickness paddleLength (-paddleDistance) $ player1 game,
+      mkPaddle (G.makeColorI 131 165 152 255) wallThickness wallPaddleLength paddleDistance $ player2 game
     ]
   where
+    wallPaddleLength = fromIntegral height + 20
     --  The pong ball.
     ball = uncurry G.translate (ballLoc game) $ G.color ballColor $ G.circleSolid radius
     ballColor = G.makeColorI 255 73 52 255
@@ -73,8 +75,8 @@ render game =
     walls = G.pictures [wall wallDistance, wall (-wallDistance)]
 
     --  Make a paddle of a given border and vertical offset.
-    mkPaddle :: G.Color -> Float -> Float -> G.Picture
-    mkPaddle paddleColor x y =
+    mkPaddle :: G.Color -> Float -> Float -> Float -> Float -> G.Picture
+    mkPaddle paddleColor paddleThickness paddleLength x y =
       G.pictures [G.translate x y $ G.color paddleColor $ G.rectangleSolid paddleThickness paddleLength]
 
 -- | Update the paddle position using its current velocity.
@@ -153,20 +155,22 @@ wallBounce game = game {ballVel = (vx, vy')}
         else -- Do nothing. Return the old velocity.
           vy
 
+-- | Takes an x, min and max value, and checks if x fits within the range
+inRange2 :: (Ord a) => a -> (a, a) -> Bool
+inRange2 x (min, max) = x >= min && x <= max
+
 -- | Given position and radius of the ball and the distance between paddles, return whether a collision occurred.
 paddleCollision :: PongGame -> Bool
 paddleCollision game = leftCollision || rightCollision
   where
     (ballX, ballY) = ballLoc game
-    y = player1 game
+    paddleY = player1 game
+    paddleY2 = player2 game
     leftCollision =
-      if ballY >= (y - paddleLength / 2)
+      if inRange2 (ballY + radius) (paddleY - paddleLength / 2, paddleY + paddleLength / 2) || inRange2 (ballY - radius) (paddleY - paddleLength / 2, paddleY + paddleLength / 2)
         then ballX - radius <= -(paddleDistance - paddleThickness / 2)
         else False
-    rightCollision =
-      if ballY <= -(y - paddleLength / 2)
-        then ballX + radius >= (paddleDistance - paddleThickness / 2)
-        else False
+    rightCollision = ballX + radius >= (paddleDistance - wallThickness / 2)
 
 -- | Given position and radius of the ball, return whether a collision occurred.
 wallCollision :: Position -> Bool
@@ -234,8 +238,8 @@ initialState :: PongGame
 initialState =
   Game
     { ballLoc = (0, 20),
-      ballVel = (-300, 300),
+      ballVel = (-100, 300),
       player1 = 40,
-      player2 = -80,
+      player2 = 0,
       keys = S.empty
     }
