@@ -1,9 +1,11 @@
 import Data.Set qualified as S
-import GHC.Ix (Ix (inRange))
 import Graphics.Gloss qualified as G
 import Graphics.Gloss.Interface.Pure.Game
 
+--------------
 -- Settings --
+--------------
+
 width, height, offset, fps :: Int
 width = 500
 height = 500
@@ -30,7 +32,34 @@ paddleLength = 100
 -- | Wall thickness.
 wallThickness = 40
 
--- Settings --
+-- | The starting state for the game of Pong.
+initialState :: PongGame
+initialState =
+  Game
+    { ballLoc = (0, 20),
+      ballVel = (-100, 300),
+      player1 = 40,
+      player2 = 0,
+      -- Dont change.
+      keys = S.empty
+    }
+
+--------------
+
+-- | Data describing the state of the pong game.
+data PongGame = Game
+  { -- | Pong ball (x, y) location.
+    ballLoc :: (Float, Float),
+    -- | Pong ball (x, y) velocity.
+    ballVel :: (Float, Float),
+    -- | Left player paddle height.
+    player1 :: Float,
+    -- | Right player paddle height.
+    player2 :: Float,
+    -- | Which keys are pressed.
+    keys :: S.Set Key
+  }
+  deriving (Show)
 
 window :: G.Display
 window = G.InWindow "Pong" (width, height) (offset, offset)
@@ -43,7 +72,7 @@ main = play window background fps initialState render handleKeys update
 
 -- | Update the game state.
 update :: Float -> PongGame -> PongGame
-update seconds game = movePaddle seconds $ paddleBounce $ wallBounce $ moveBall seconds game
+update seconds game = ballOutOfBounds $ movePaddle seconds $ paddleBounce $ wallBounce $ moveBall seconds game
 
 -- | Convert a game state into a picture.
 render ::
@@ -76,8 +105,8 @@ render game =
 
     --  Make a paddle of a given border and vertical offset.
     mkPaddle :: G.Color -> Float -> Float -> Float -> Float -> G.Picture
-    mkPaddle paddleColor paddleThickness paddleLength x y =
-      G.pictures [G.translate x y $ G.color paddleColor $ G.rectangleSolid paddleThickness paddleLength]
+    mkPaddle paddleColor' paddleThickness' paddleLength' x y =
+      G.pictures [G.translate x y $ G.color paddleColor' $ G.rectangleSolid paddleThickness' paddleLength']
 
 -- | Update the paddle position using its current velocity.
 movePaddle ::
@@ -125,6 +154,14 @@ moveBall seconds game = game {ballLoc = (x', y'), ballVel = (vx', vy')}
 
 type Position = (Float, Float)
 
+-- | Exit the program if the ball is out of bounds or return PongGame
+ballOutOfBounds :: PongGame -> PongGame
+ballOutOfBounds game
+  | ballX + radius < -(paddleDistance + paddleThickness) = error "You lost, THIS IS NOT A CRASH THIS IS NOT A CRASH THIS IS NOT A CRASH, i literally do not know how to make this program exit because i dont understand IO types"
+  | otherwise = game
+  where
+    (ballX, _) = ballLoc game
+
 -- | Detect a collision with a paddle. Upon collisions,
 -- change the velocity of the ball to bounce it off the paddle.
 paddleBounce :: PongGame -> PongGame
@@ -157,7 +194,7 @@ wallBounce game = game {ballVel = (vx, vy')}
 
 -- | Takes an x, min and max value, and checks if x fits within the range
 inRange2 :: (Ord a) => a -> (a, a) -> Bool
-inRange2 x (min, max) = x >= min && x <= max
+inRange2 x (min', max') = x >= min' && x <= max'
 
 -- | Given position and radius of the ball and the distance between paddles, return whether a collision occurred.
 paddleCollision :: PongGame -> Bool
@@ -165,11 +202,15 @@ paddleCollision game = leftCollision || rightCollision
   where
     (ballX, ballY) = ballLoc game
     paddleY = player1 game
-    paddleY2 = player2 game
     leftCollision =
-      if inRange2 (ballY + radius) (paddleY - paddleLength / 2, paddleY + paddleLength / 2) || inRange2 (ballY - radius) (paddleY - paddleLength / 2, paddleY + paddleLength / 2)
-        then ballX - radius <= -(paddleDistance - paddleThickness / 2)
-        else False
+      ( inRange2
+          (ballY + radius)
+          (paddleY - paddleLength / 2, paddleY + paddleLength / 2)
+          || inRange2
+            (ballY - radius)
+            (paddleY - paddleLength / 2, paddleY + paddleLength / 2)
+      )
+        && (ballX - radius <= -(paddleDistance - paddleThickness / 2))
     rightCollision = ballX + radius >= (paddleDistance - wallThickness / 2)
 
 -- | Given position and radius of the ball, return whether a collision occurred.
@@ -199,17 +240,6 @@ handleKeys (EventKey (Char 'j') Down _ _) game =
   game {keys = S.insert (Char 'j') (keys game)}
 handleKeys (EventKey (Char 'j') Up _ _) game =
   game {keys = S.delete (Char 'j') (keys game)}
--- game {player1 = y'}
--- where
---   y = player1 game
---
---   y' =
---     if wallCollision (1.0, player1 game)
---       then -- Update the velocity.
---         y
---       else -- Do nothing. Return the old velocity.
---         y - 5
-
 -- \| Move up on k.
 handleKeys (EventKey (Char 'k') Down _ _) game =
   game {keys = S.insert (Char 'k') (keys game)}
@@ -217,29 +247,3 @@ handleKeys (EventKey (Char 'k') Up _ _) game =
   game {keys = S.delete (Char 'k') (keys game)}
 -- Do nothing for all other events.
 handleKeys _ game = game
-
--- | Data describing the state of the pong game.
-data PongGame = Game
-  { -- | Pong ball (x, y) location.
-    ballLoc :: (Float, Float),
-    -- | Pong ball (x, y) velocity.
-    ballVel :: (Float, Float),
-    -- | Left player paddle height.
-    player1 :: Float,
-    -- | Right player paddle height.
-    player2 :: Float,
-    -- | Which keys are pressed.
-    keys :: S.Set Key
-  }
-  deriving (Show)
-
--- | The starting state for the game of Pong.
-initialState :: PongGame
-initialState =
-  Game
-    { ballLoc = (0, 20),
-      ballVel = (-100, 300),
-      player1 = 40,
-      player2 = 0,
-      keys = S.empty
-    }
