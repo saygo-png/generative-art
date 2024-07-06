@@ -17,7 +17,6 @@
           inputs',
           pkgs,
           system,
-          lib,
           ...
         }:
         {
@@ -27,22 +26,24 @@
           devenv.shells.default = {
             # https://devenv.sh/reference/options/
             packages = with pkgs.python3Packages; [
-              pkgs.processing
               numpy
-              jpype1
-              pkgs.jdk
-              pkgs.pipenv
-              pkgs.scilab-bin
-              glcontext
+              flake8
+              black
             ];
 
+            enterShell = ''
+              rm -rf natives
+              mkdir -p natives/linux-amd64
+              ln -s ${pkgs.scilab-bin}/lib/thirdparty/* ./natives/linux-amd64/
+            '';
+
             env = {
-              # LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib/";
-              NIX_LD_LIBRARY_PATH = lib.makeLibraryPath [
-                pkgs.stdenv.cc.cc
-                pkgs.processing
-              ];
-              NIX_LD = builtins.readFile "${pkgs.stdenv.cc}/nix-support/dynamic-linker";
+              LD_LIBRARY_PATH =
+                with pkgs;
+                lib.makeLibraryPath [
+                  libGL
+                  stdenv.cc.cc.lib
+                ];
             };
 
             dotenv.disableHint = true;
