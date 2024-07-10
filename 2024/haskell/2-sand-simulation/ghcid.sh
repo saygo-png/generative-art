@@ -1,1 +1,1 @@
-ghcid -c="ghci app/Main.hs" -T=main
+ghcid -c="cabal run" -T=main
