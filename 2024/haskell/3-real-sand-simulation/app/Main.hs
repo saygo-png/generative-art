@@ -1,5 +1,7 @@
 -- Imports. {{{
-import Data.Set qualified as S -- [S]et
+-- [S]et
+import Data.Array
+import Data.Set qualified as S
 import Graphics.Gloss
 import Graphics.Gloss.Interface.Pure.Game
 
@@ -15,11 +17,11 @@ fps = 144
 initialState :: State
 initialState =
   MkState
-    { cellCount = 3,
-      gap = 10,
-      cellSize = widthF / cellCount initialState,
-      cellMatrix = createCellWire initialState,
-      keys = S.empty
+    { cellCount = 3
+    , gap = 10
+    , cellSize = widthF / cellCount initialState
+    , cellMatrix = createCellWire initialState
+    , keys = S.empty
     }
 
 {- ORMOLU_DISABLE -}
@@ -83,24 +85,24 @@ render state =
       cellCount' = cellCount state
       centerAmount = (-((widthF / 2) - cellSize' / 2 + ((gap' * cellCount') / 2)))
    in pictures
-        [ color (gDark2 127) (rectangleSolid widthF heightF),
-          translate centerAmount centerAmount $ pictures (fillCells state)
+        [ color (gDark2 127) (rectangleSolid widthF heightF)
+        , translate centerAmount centerAmount $ pictures (fillCells state)
         ]
 
 -- }}}
 
 -- Data Structures. {{{
 data State = MkState
-  { -- | Amount of cells
-    cellCount :: Float,
-    -- | Size of one cell
-    cellSize :: Float,
-    -- | Gap between the cells, makes the grid larger.
-    gap :: Float,
-    -- | multidimensional array of points, x = column, y = row.
-    cellMatrix :: [[Cell]],
-    -- | Which keys are pressed
-    keys :: S.Set Key
+  { cellCount :: Float
+  -- ^ Amount of cells
+  , cellSize :: Float
+  -- ^ Size of one cell
+  , gap :: Float
+  -- ^ Gap between the cells, makes the grid larger.
+  , cellMatrix :: [[Cell]]
+  -- ^ multidimensional array of points, x = column, y = row.
+  , keys :: S.Set Key
+  -- ^ Which keys are pressed
   }
 
 -- | Type defining a cell on a grid, a cell can be on or off, true = on, false = off.
@@ -110,40 +112,52 @@ type Cell = (Point, Bool)
 
 -- Grid setup. {{{
 
+-- | Creates a multidimensional array of points, x = column, y = row, 1 indexed
+createCellWireNew :: State -> Array (Int, Int) Cell
+createCellWireNew state =
+  let
+    -- Generate the elements of the array
+    rows = round (cellCount state)
+    columns = round (cellCount state)
+    cellDistance = cellSize state + gap state
+    elements = [((r, c), ((fromIntegral r * cellDistance, fromIntegral c * cellDistance), False)) | r <- [0 .. rows - 1], c <- [0 .. columns - 1]]
+   in
+    array ((0, 0), (rows - 1, columns - 1)) elements
+
 -- | Creates a multidimensional array of points, x = column, y = row
 createCellWire :: State -> [[Cell]]
 createCellWire grid = gridWireIntoCells . horizontalLineCells $ verticalLineCells cellCount' 0
-  where
-    cellCount' = cellCount grid
-    cellSize' = cellSize grid
-    gap' = gap grid
-    verticalLineCells :: Float -> Float -> [Point]
-    verticalLineCells 0 _ = []
-    verticalLineCells n acc = (0, acc) : verticalLineCells (n - 1) (acc + cellSize' + gap')
+ where
+  cellCount' = cellCount grid
+  cellSize' = cellSize grid
+  gap' = gap grid
+  verticalLineCells :: Float -> Float -> [Point]
+  verticalLineCells 0 _ = []
+  verticalLineCells n acc = (0, acc) : verticalLineCells (n - 1) (acc + cellSize' + gap')
 
-    horizontalLineCells :: [Point] -> [[Point]]
-    horizontalLineCells = map (toRow cellCount' 0)
-      where
-        toRow :: Float -> Float -> Point -> [Point]
-        toRow 0 _ _ = []
-        toRow n acc (vx, vy) = (vx + acc, vy) : toRow (n - 1) (acc + cellSize' + gap') (vx, vy)
+  horizontalLineCells :: [Point] -> [[Point]]
+  horizontalLineCells = map (toRow cellCount' 0)
+   where
+    toRow :: Float -> Float -> Point -> [Point]
+    toRow 0 _ _ = []
+    toRow n acc (vx, vy) = (vx + acc, vy) : toRow (n - 1) (acc + cellSize' + gap') (vx, vy)
 
-    -- \| Converts a Point grid to a Cell grid.
-    gridWireIntoCells :: [[Point]] -> [[Cell]]
-    gridWireIntoCells = map (map pointToCell)
-      where
-        -- \| Converts a Point to a Cell.
-        pointToCell :: Point -> Cell
-        pointToCell (x, y) = ((x, y), False)
+  -- \| Converts a Point grid to a Cell grid.
+  gridWireIntoCells :: [[Point]] -> [[Cell]]
+  gridWireIntoCells = map (map pointToCell)
+   where
+    -- \| Converts a Point to a Cell.
+    pointToCell :: Point -> Cell
+    pointToCell (x, y) = ((x, y), False)
 
 -- | Draw a cell on each point.
 fillCells :: State -> [Picture]
 fillCells grid = concatMap (map rectOnCell) (cellMatrix grid)
-  where
-    cellSize' = cellSize grid
-    rectOnCell :: Cell -> Picture
-    rectOnCell ((x, y), True) = translate x y $ color (gGreen 255) (rectangleSolid cellSize' cellSize')
-    rectOnCell ((x, y), False) = translate x y $ color (gDark3 255) (rectangleSolid cellSize' cellSize')
+ where
+  cellSize' = cellSize grid
+  rectOnCell :: Cell -> Picture
+  rectOnCell ((x, y), True) = translate x y $ color (gGreen 255) (rectangleSolid cellSize' cellSize')
+  rectOnCell ((x, y), False) = translate x y $ color (gDark3 255) (rectangleSolid cellSize' cellSize')
 
 -- }}}
 
@@ -166,19 +180,20 @@ filterTrue nestedList = filter (\((_, _), b) -> b) (concat nestedList)
 
 -- | Update an element at a specific position, 1 indexed
 turnCellOn :: Int -> Int -> State -> State
-turnCellOn rowIndex' colIndex' grid = grid {cellMatrix = cellMatrix'}
-  where
-    array = cellMatrix grid
-    rowIndex = rowIndex' - 1
-    colIndex = colIndex' - 1
-    -- Extract the row
-    row = array !! rowIndex
-    -- Update the specific element in the row
-    updatedRow = take colIndex row ++ [updatedElement] ++ drop (colIndex + 1) row
-      where
-        updatedElement = let ((x, y), _) = row !! colIndex in ((x, y), True)
-    -- Reconstruct the list with the updated row
-    cellMatrix' = take rowIndex array ++ [updatedRow] ++ drop (rowIndex + 1) array
+turnCellOn rowIndex' colIndex' grid = grid{cellMatrix = cellMatrix'}
+ where
+  list = cellMatrix grid
+  rowIndex = rowIndex' - 1
+  colIndex = colIndex' - 1
+  -- Extract the row
+  row = list !! rowIndex
+  -- Update the specific element in the row
+  updatedRow = take colIndex row ++ [updatedElement] ++ drop (colIndex + 1) row
+   where
+    updatedElement = let ((x, y), _) = row !! colIndex in ((x, y), True)
+  -- Reconstruct the list with the updated row
+  cellMatrix' = take rowIndex list ++ [updatedRow] ++ drop (rowIndex + 1) list
+
 
 -- }}}
 
@@ -189,9 +204,9 @@ handleInput :: Event -> State -> State
 
 -- | Register j as a key press.
 handleInput (EventKey (Char 'j') Down _ _) game =
-  game {keys = S.insert (Char 'j') (keys game)}
+  game{keys = S.insert (Char 'j') (keys game)}
 handleInput (EventKey (Char 'j') Up _ _) game =
-  game {keys = S.delete (Char 'j') (keys game)}
+  game{keys = S.delete (Char 'j') (keys game)}
 -- Do nothing for all other events.
 handleInput _ game = game
 
