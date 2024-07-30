@@ -1,6 +1,7 @@
 -- Imports. {{{
--- [S]et
 import Data.Array
+import Data.Array.Base qualified as A
+import Data.Foldable
 import Data.Set qualified as S
 import Graphics.Gloss
 import Graphics.Gloss.Interface.Pure.Game
@@ -12,15 +13,15 @@ width, height, offset, fps :: Int
 width = 500
 height = width
 offset = 0
-fps = 144
+fps = 3
 
 initialState :: State
 initialState =
   MkState
-    { cellCount = 3
-    , gap = 10
+    { cellCount = 30
+    , gap = 2
     , cellSize = widthF / cellCount initialState
-    , cellMatrix = createCellWire initialState
+    , cellMatrix = turnCellOn (14, 24) $ createCellWireNew initialState
     , keys = S.empty
     }
 
@@ -75,7 +76,7 @@ window = InWindow "Sand" (width, height) (offset, offset)
 
 -- | Update the game state.
 update :: Float -> State -> State
-update _ = turnCellOn 3 2
+update _ grid = fall grid
 
 -- | Render the game state.
 render :: State -> Picture
@@ -86,7 +87,7 @@ render state =
       centerAmount = (-((widthF / 2) - cellSize' / 2 + ((gap' * cellCount') / 2)))
    in pictures
         [ color (gDark2 127) (rectangleSolid widthF heightF)
-        , translate centerAmount centerAmount $ pictures (fillCells state)
+        , translate centerAmount centerAmount $ pictures (fillCellsNew state)
         ]
 
 -- }}}
@@ -99,7 +100,7 @@ data State = MkState
   -- ^ Size of one cell
   , gap :: Float
   -- ^ Gap between the cells, makes the grid larger.
-  , cellMatrix :: [[Cell]]
+  , cellMatrix :: Array (Int, Int) Cell
   -- ^ multidimensional array of points, x = column, y = row.
   , keys :: S.Set Key
   -- ^ Which keys are pressed
@@ -112,47 +113,25 @@ type Cell = (Point, Bool)
 
 -- Grid setup. {{{
 
--- | Creates a multidimensional array of points, x = column, y = row, 1 indexed
+-- | Creates a multidimensional array of points
 createCellWireNew :: State -> Array (Int, Int) Cell
 createCellWireNew state =
   let
     -- Generate the elements of the array
-    rows = round (cellCount state)
-    columns = round (cellCount state)
+    rows = round (cellCount state - 1)
+    columns = round (cellCount state - 1)
     cellDistance = cellSize state + gap state
-    elements = [((r, c), ((fromIntegral r * cellDistance, fromIntegral c * cellDistance), False)) | r <- [0 .. rows - 1], c <- [0 .. columns - 1]]
+    elements =
+      [ ((r, c), ((fromIntegral r * cellDistance, fromIntegral c * cellDistance), False))
+      | r <- [0 .. rows]
+      , c <- [0 .. columns]
+      ]
    in
-    array ((0, 0), (rows - 1, columns - 1)) elements
-
--- | Creates a multidimensional array of points, x = column, y = row
-createCellWire :: State -> [[Cell]]
-createCellWire grid = gridWireIntoCells . horizontalLineCells $ verticalLineCells cellCount' 0
- where
-  cellCount' = cellCount grid
-  cellSize' = cellSize grid
-  gap' = gap grid
-  verticalLineCells :: Float -> Float -> [Point]
-  verticalLineCells 0 _ = []
-  verticalLineCells n acc = (0, acc) : verticalLineCells (n - 1) (acc + cellSize' + gap')
-
-  horizontalLineCells :: [Point] -> [[Point]]
-  horizontalLineCells = map (toRow cellCount' 0)
-   where
-    toRow :: Float -> Float -> Point -> [Point]
-    toRow 0 _ _ = []
-    toRow n acc (vx, vy) = (vx + acc, vy) : toRow (n - 1) (acc + cellSize' + gap') (vx, vy)
-
-  -- \| Converts a Point grid to a Cell grid.
-  gridWireIntoCells :: [[Point]] -> [[Cell]]
-  gridWireIntoCells = map (map pointToCell)
-   where
-    -- \| Converts a Point to a Cell.
-    pointToCell :: Point -> Cell
-    pointToCell (x, y) = ((x, y), False)
+    array ((0, 0), (rows, columns)) elements
 
 -- | Draw a cell on each point.
-fillCells :: State -> [Picture]
-fillCells grid = concatMap (map rectOnCell) (cellMatrix grid)
+fillCellsNew :: State -> [Picture]
+fillCellsNew grid = toList (fmap rectOnCell (cellMatrix grid))
  where
   cellSize' = cellSize grid
   rectOnCell :: Cell -> Picture
@@ -164,36 +143,29 @@ fillCells grid = concatMap (map rectOnCell) (cellMatrix grid)
 -- Cell Logic. {{{
 
 -- | Make the cell fall
-fall :: Cell -> State
-fall = undefined
-
--- | Get a cell based on row, column. 1 indexed.
-getCell :: Int -> Int -> State -> Cell
-getCell rowIndex colIndex state =
-  let array = cellMatrix state
-      rowIndex' = rowIndex - 1
-      colIndex' = colIndex - 1
-   in ((array !! rowIndex') !! colIndex')
-
-filterTrue :: [[Cell]] -> [Cell]
-filterTrue nestedList = filter (\((_, _), b) -> b) (concat nestedList)
-
--- | Update an element at a specific position, 1 indexed
-turnCellOn :: Int -> Int -> State -> State
-turnCellOn rowIndex' colIndex' grid = grid{cellMatrix = cellMatrix'}
+fall :: State -> State
+fall state = state{cellMatrix = fallArray $ cellMatrix state}
  where
-  list = cellMatrix grid
-  rowIndex = rowIndex' - 1
-  colIndex = colIndex' - 1
-  -- Extract the row
-  row = list !! rowIndex
-  -- Update the specific element in the row
-  updatedRow = take colIndex row ++ [updatedElement] ++ drop (colIndex + 1) row
+  fallArray :: Array (Int, Int) Cell -> Array (Int, Int) Cell
+  fallArray arr = A.genArray (bounds arr) processCell
    where
-    updatedElement = let ((x, y), _) = row !! colIndex in ((x, y), True)
-  -- Reconstruct the list with the updated row
-  cellMatrix' = take rowIndex list ++ [updatedRow] ++ drop (rowIndex + 1) list
+    ((_, _), (_, maxY)) = bounds arr
+    inBounds :: Int -> Bool
+    inBounds = inRange (0 + 1, maxY - 1)
+    processCell :: (Int, Int) -> Cell
+    processCell (x, y)
+      | inBounds y && value == False && valueAbove == True = (point, True)
+      | y == 0 && value == True = (point, True)
+      | y == 0 && value == False && valueAbove == True = (point, True)
+      | otherwise = (point, False)
+     where
+      (point, value) = arr ! (x, y)
+      (_, valueBelow) = arr ! (x, y - 1)
+      (_, valueAbove) = arr ! (x, y + 1)
 
+-- | Update an element at a specific position
+turnCellOn :: (Ix i) => i -> Array i Cell -> Array i Cell
+turnCellOn idx arr = arr // [(idx, (fst (arr ! idx), True))]
 
 -- }}}
 

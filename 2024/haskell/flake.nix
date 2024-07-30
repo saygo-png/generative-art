@@ -23,12 +23,19 @@
                 haskellPackages.rio
                 haskellPackages.containers
                 haskellPackages.haskell-language-server
+                haskellPackages.implicit-hie
                 ghcid
                 cabal-install
               ]
             )
           )
-
+          haskell-language-server
+          ghcid
+          cabal-install
+          haskellPackages.GLUT
+          haskellPackages.gloss
+          haskellPackages.rio
+          haskellPackages.containers
           (
             # Wrap Stack to work with our Nix integration. We don't want to modify
             # stack.yaml so non-Nix users don't notice anything.
