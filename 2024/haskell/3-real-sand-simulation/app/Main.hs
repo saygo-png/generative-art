@@ -13,7 +13,7 @@ width, height, offset, fps :: Int
 width = 500
 height = width
 offset = 0
-fps = 3
+fps = 10
 
 initialState :: State
 initialState =
@@ -76,7 +76,7 @@ window = InWindow "Sand" (width, height) (offset, offset)
 
 -- | Update the game state.
 update :: Float -> State -> State
-update _ grid = fall grid
+update _ grid = spill $ fall $ grid{cellMatrix = turnCellOn (14, 24) $ cellMatrix grid}
 
 -- | Render the game state.
 render :: State -> Picture
@@ -142,26 +142,64 @@ fillCellsNew grid = toList (fmap rectOnCell (cellMatrix grid))
 
 -- Cell Logic. {{{
 
+-- | Make the cell spill
+spill :: State -> State
+spill state = state{cellMatrix = A.genArray (bounds arr) spillCell}
+ where
+  arr = cellMatrix state
+  inBounds' = inBounds arr
+  ((minX, minY), (maxX, maxY)) = bounds arr
+  spillCell :: (Int, Int) -> Cell
+  spillCell (x, y)
+    | inBounds' x && not value && rightBlock = (point, True)
+    | y > 0 && inRange (minX + 2, maxX -2) x && inBounds' x && value && valueBelow && not valueLeftBelow && not valueLeftLeftBelow = (point, False)
+    -- | y > 0 && x == 0 && inBounds' x && value && valueBelow && not valueLeftBelow && not valueLeftLeftBelow = (point, False)
+    -- | inBounds' x && not value && leftBlock = (point, True)
+    | otherwise = (point, value)
+   where
+    rightBlock = valueRight && valueRightAbove
+    leftBlock = valueLeft && valueLeftAbove
+
+    (point, value) = arr ! (x, y)
+
+    (_, valueBelow) = arr ! (x, y - 1)
+    (_, valueAbove) = arr ! (x, y + 1)
+
+    (_, valueRight) = arr ! (x + 1, y)
+    (_, valueRightAbove) = arr ! (x + 1, y + 1)
+
+    (_, valueLeft) = arr ! (x - 1, y)
+    (_, valueLeftAbove) = arr ! (x - 1, y + 1)
+    (_, valueLeftBelow) = arr ! (x - 1, y - 1)
+    (_, valueLeftLeftBelow) = arr ! (x - 2, y - 1)
+
 -- | Make the cell fall
 fall :: State -> State
-fall state = state{cellMatrix = fallArray $ cellMatrix state}
+fall state = state{cellMatrix = A.genArray (bounds arr) fallCell}
  where
-  fallArray :: Array (Int, Int) Cell -> Array (Int, Int) Cell
-  fallArray arr = A.genArray (bounds arr) processCell
+  arr = cellMatrix state
+  inBounds' = inBounds arr
+  fallCell :: (Int, Int) -> Cell
+  fallCell (x, y)
+    | y == 0 && value = (point, True)
+    | y == 0 && not value && valueAbove = (point, True)
+    | inBounds' y && value && valueBelow = (point, True)
+    | inBounds' y && not value && valueAbove = (point, True)
+    | otherwise = (point, False)
    where
-    ((_, _), (_, maxY)) = bounds arr
-    inBounds :: Int -> Bool
-    inBounds = inRange (0 + 1, maxY - 1)
-    processCell :: (Int, Int) -> Cell
-    processCell (x, y)
-      | inBounds y && value == False && valueAbove == True = (point, True)
-      | y == 0 && value == True = (point, True)
-      | y == 0 && value == False && valueAbove == True = (point, True)
-      | otherwise = (point, False)
-     where
-      (point, value) = arr ! (x, y)
-      (_, valueBelow) = arr ! (x, y - 1)
-      (_, valueAbove) = arr ! (x, y + 1)
+    (point, value) = arr ! (x, y)
+    (_, valueBelow) = arr ! (x, y - 1)
+    (_, valueAbove) = arr ! (x, y + 1)
+
+-- }}}
+
+-- Helper Functions. {{{
+inBounds :: Array (Int, Int) Cell -> Int -> Bool
+inBounds arr number =
+  let
+    ((minX, minY), (maxX, maxY)) = bounds arr
+   in
+    inRange (minY + 1, maxY - 1) number && inRange (minX + 1, maxX - 1) number
 
 -- | Update an element at a specific position
 turnCellOn :: (Ix i) => i -> Array i Cell -> Array i Cell
@@ -174,13 +212,43 @@ turnCellOn idx arr = arr // [(idx, (fst (arr ! idx), True))]
 -- | Respond to key events.
 handleInput :: Event -> State -> State
 
--- | Register j as a key press.
+-- | Register hjkl as a key presses.
+handleInput (EventKey (Char 'h') Down _ _) game =
+  game{keys = S.insert (Char 'h') (keys game)}
+handleInput (EventKey (Char 'h') Up _ _) game =
+  game{keys = S.delete (Char 'h') (keys game)}
 handleInput (EventKey (Char 'j') Down _ _) game =
   game{keys = S.insert (Char 'j') (keys game)}
 handleInput (EventKey (Char 'j') Up _ _) game =
   game{keys = S.delete (Char 'j') (keys game)}
+handleInput (EventKey (Char 'k') Down _ _) game =
+  game{keys = S.insert (Char 'k') (keys game)}
+handleInput (EventKey (Char 'k') Up _ _) game =
+  game{keys = S.delete (Char 'k') (keys game)}
 -- Do nothing for all other events.
 handleInput _ game = game
+
+-- -- | Handle mouse click and motion events.
+-- handleEvent :: Event -> State -> State
+-- handleEvent event state
+--   -- If the mouse has moved, then extend the current line.
+--   | EventMotion (x, y) <- event
+--   , State (Just ps) ss <- state =
+--       State (Just ((x, y) : ps)) ss
+--   -- Start drawing a new line.
+--   | EventKey (MouseButton LeftButton) Down _ pt@(x, y) <- event
+--   , State Nothing ss <- state =
+--       State
+--         (Just [pt])
+--         ((Translate x y $ Scale 0.1 0.1 $ Text "Down") : ss)
+--   -- Finish drawing a line, and add it to the picture.
+--   | EventKey (MouseButton LeftButton) Up _ pt@(x, y) <- event
+--   , State (Just ps) ss <- state =
+--       State
+--         Nothing
+--         ((Translate x y $ Scale 0.1 0.1 $ Text "up") : Line (pt : ps) : ss)
+--   | otherwise =
+--       state
 
 -- }}}
 
