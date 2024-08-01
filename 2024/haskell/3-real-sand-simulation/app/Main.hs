@@ -18,11 +18,11 @@ fps = 10
 initialState :: State
 initialState =
   MkState
-    { cellCount = 30
-    , gap = 2
-    , cellSize = widthF / cellCount initialState
-    , cellMatrix = turnCellOn (14, 24) $ createCellWireNew initialState
-    , keys = S.empty
+    { cellCount = 30,
+      gap = 2,
+      cellSize = widthF / cellCount initialState,
+      cellMatrix = turnCellOn (14, 24) $ createCellWireNew initialState,
+      keys = S.empty
     }
 
 {- ORMOLU_DISABLE -}
@@ -85,25 +85,25 @@ render state =
       gap' = gap state
       cellCount' = cellCount state
       centerAmount = (-((widthF / 2) - cellSize' / 2 + ((gap' * cellCount') / 2)))
-   in pictures
-        [ color (gDark2 127) (rectangleSolid widthF heightF)
-        , translate centerAmount centerAmount $ pictures (fillCellsNew state)
+  in  pictures
+        [ color (gDark2 127) (rectangleSolid widthF heightF),
+          translate centerAmount centerAmount $ pictures (fillCellsNew state)
         ]
 
 -- }}}
 
 -- Data Structures. {{{
 data State = MkState
-  { cellCount :: Float
-  -- ^ Amount of cells
-  , cellSize :: Float
-  -- ^ Size of one cell
-  , gap :: Float
-  -- ^ Gap between the cells, makes the grid larger.
-  , cellMatrix :: Array (Int, Int) Cell
-  -- ^ multidimensional array of points, x = column, y = row.
-  , keys :: S.Set Key
-  -- ^ Which keys are pressed
+  { -- | Amount of cells
+    cellCount :: Float,
+    -- | Size of one cell
+    cellSize :: Float,
+    -- | Gap between the cells, makes the grid larger.
+    gap :: Float,
+    -- | multidimensional array of points, x = column, y = row.
+    cellMatrix :: Array (Int, Int) Cell,
+    -- | Which keys are pressed
+    keys :: S.Set Key
   }
 
 -- | Type defining a cell on a grid, a cell can be on or off, true = on, false = off.
@@ -116,27 +116,25 @@ type Cell = (Point, Bool)
 -- | Creates a multidimensional array of points
 createCellWireNew :: State -> Array (Int, Int) Cell
 createCellWireNew state =
-  let
-    -- Generate the elements of the array
-    rows = round (cellCount state - 1)
-    columns = round (cellCount state - 1)
-    cellDistance = cellSize state + gap state
-    elements =
-      [ ((r, c), ((fromIntegral r * cellDistance, fromIntegral c * cellDistance), False))
-      | r <- [0 .. rows]
-      , c <- [0 .. columns]
-      ]
-   in
-    array ((0, 0), (rows, columns)) elements
+  let -- Generate the elements of the array
+      rows = round (cellCount state - 1)
+      columns = round (cellCount state - 1)
+      cellDistance = cellSize state + gap state
+      elements =
+        [ ((r, c), ((fromIntegral r * cellDistance, fromIntegral c * cellDistance), False))
+          | r <- [0 .. rows],
+            c <- [0 .. columns]
+        ]
+  in  array ((0, 0), (rows, columns)) elements
 
 -- | Draw a cell on each point.
 fillCellsNew :: State -> [Picture]
 fillCellsNew grid = toList (fmap rectOnCell (cellMatrix grid))
- where
-  cellSize' = cellSize grid
-  rectOnCell :: Cell -> Picture
-  rectOnCell ((x, y), True) = translate x y $ color (gGreen 255) (rectangleSolid cellSize' cellSize')
-  rectOnCell ((x, y), False) = translate x y $ color (gDark3 255) (rectangleSolid cellSize' cellSize')
+  where
+    cellSize' = cellSize grid
+    rectOnCell :: Cell -> Picture
+    rectOnCell ((x, y), True) = translate x y $ color (gGreen 255) (rectangleSolid cellSize' cellSize')
+    rectOnCell ((x, y), False) = translate x y $ color (gDark3 255) (rectangleSolid cellSize' cellSize')
 
 -- }}}
 
@@ -145,61 +143,61 @@ fillCellsNew grid = toList (fmap rectOnCell (cellMatrix grid))
 -- | Make the cell spill
 spill :: State -> State
 spill state = state{cellMatrix = A.genArray (bounds arr) spillCell}
- where
-  arr = cellMatrix state
-  inBounds' = inBounds arr
-  ((minX, minY), (maxX, maxY)) = bounds arr
-  spillCell :: (Int, Int) -> Cell
-  spillCell (x, y)
-    | inBounds' x && not value && rightBlock = (point, True)
-    | y > 0 && inRange (minX + 2, maxX -2) x && inBounds' x && value && valueBelow && not valueLeftBelow && not valueLeftLeftBelow = (point, False)
-    -- | y > 0 && x == 0 && inBounds' x && value && valueBelow && not valueLeftBelow && not valueLeftLeftBelow = (point, False)
-    -- | inBounds' x && not value && leftBlock = (point, True)
-    | otherwise = (point, value)
-   where
-    rightBlock = valueRight && valueRightAbove
-    leftBlock = valueLeft && valueLeftAbove
+  where
+    arr = cellMatrix state
+    inBounds' = inBounds arr
+    ((minX, minY), (maxX, maxY)) = bounds arr
+    spillCell :: (Int, Int) -> Cell
+    spillCell (x, y)
+      | inBounds' x && not value && rightBlock = (point, True)
+      | x == 0 && not value && rightBlock = (point, True)
+      | y > 0 && inRange (minX + 2, maxX - 2) x && value && valueBelow && not valueLeftBelow && not valueLeftLeftBelow = (point, False)
+      -- \| y > 0 &&  x && value && valueBelow && not valueLeftBelow && not valueLeftLeftBelow = (point, False)
+      -- \| y > 0 && x == 0 && inBounds' x && value && valueBelow && not valueLeftBelow && not valueLeftLeftBelow = (point, False)
+      -- \| inBounds' x && not value && leftBlock = (point, True)
+      | otherwise = (point, value)
+      where
+        rightBlock = valueRight && valueRightAbove
+        leftBlock = valueLeft && valueLeftAbove
 
-    (point, value) = arr ! (x, y)
+        (point, value) = arr ! (x, y)
 
-    (_, valueBelow) = arr ! (x, y - 1)
-    (_, valueAbove) = arr ! (x, y + 1)
+        (_, valueBelow) = arr ! (x, y - 1)
+        (_, valueAbove) = arr ! (x, y + 1)
 
-    (_, valueRight) = arr ! (x + 1, y)
-    (_, valueRightAbove) = arr ! (x + 1, y + 1)
+        (_, valueRight) = arr ! (x + 1, y)
+        (_, valueRightAbove) = arr ! (x + 1, y + 1)
 
-    (_, valueLeft) = arr ! (x - 1, y)
-    (_, valueLeftAbove) = arr ! (x - 1, y + 1)
-    (_, valueLeftBelow) = arr ! (x - 1, y - 1)
-    (_, valueLeftLeftBelow) = arr ! (x - 2, y - 1)
+        (_, valueLeft) = arr ! (x - 1, y)
+        (_, valueLeftAbove) = arr ! (x - 1, y + 1)
+        (_, valueLeftBelow) = arr ! (x - 1, y - 1)
+        (_, valueLeftLeftBelow) = arr ! (x - 2, y - 1)
 
 -- | Make the cell fall
 fall :: State -> State
 fall state = state{cellMatrix = A.genArray (bounds arr) fallCell}
- where
-  arr = cellMatrix state
-  inBounds' = inBounds arr
-  fallCell :: (Int, Int) -> Cell
-  fallCell (x, y)
-    | y == 0 && value = (point, True)
-    | y == 0 && not value && valueAbove = (point, True)
-    | inBounds' y && value && valueBelow = (point, True)
-    | inBounds' y && not value && valueAbove = (point, True)
-    | otherwise = (point, False)
-   where
-    (point, value) = arr ! (x, y)
-    (_, valueBelow) = arr ! (x, y - 1)
-    (_, valueAbove) = arr ! (x, y + 1)
+  where
+    arr = cellMatrix state
+    inBounds' = inBounds arr
+    fallCell :: (Int, Int) -> Cell
+    fallCell (x, y)
+      | y == 0 && value = (point, True)
+      | y == 0 && not value && valueAbove = (point, True)
+      | inBounds' y && value && valueBelow = (point, True)
+      | inBounds' y && not value && valueAbove = (point, True)
+      | otherwise = (point, False)
+      where
+        (point, value) = arr ! (x, y)
+        (_, valueBelow) = arr ! (x, y - 1)
+        (_, valueAbove) = arr ! (x, y + 1)
 
 -- }}}
 
 -- Helper Functions. {{{
 inBounds :: Array (Int, Int) Cell -> Int -> Bool
 inBounds arr number =
-  let
-    ((minX, minY), (maxX, maxY)) = bounds arr
-   in
-    inRange (minY + 1, maxY - 1) number && inRange (minX + 1, maxX - 1) number
+  let ((minX, minY), (maxX, maxY)) = bounds arr
+  in  inRange (minY + 1, maxY - 1) number && inRange (minX + 1, maxX - 1) number
 
 -- | Update an element at a specific position
 turnCellOn :: (Ix i) => i -> Array i Cell -> Array i Cell
