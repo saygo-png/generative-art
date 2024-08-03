@@ -13,7 +13,7 @@ width, height, offset, fps :: Int
 width = 500
 height = width
 offset = 0
-fps = 10
+fps = 20
 
 initialState :: State
 initialState =
@@ -21,7 +21,9 @@ initialState =
     { cellCount = 30,
       gap = 2,
       cellSize = widthF / cellCount initialState,
-      cellMatrix = turnCellOn (14, 24) $ createCellWireNew initialState,
+      cellMatrix = createCellWireNew initialState,
+      spillDir = "left",
+      spawnLoc = (14, 24),
       keys = S.empty
     }
 
@@ -76,7 +78,7 @@ window = InWindow "Sand" (width, height) (offset, offset)
 
 -- | Update the game state.
 update :: Float -> State -> State
-update _ grid = spill $ fall $ grid{cellMatrix = turnCellOn (14, 24) $ cellMatrix grid}
+update _ grid = spill $ fall $ grid{cellMatrix = turnCellOn (14, 29) $ cellMatrix grid}
 
 -- | Render the game state.
 render :: State -> Picture
@@ -102,6 +104,10 @@ data State = MkState
     gap :: Float,
     -- | multidimensional array of points, x = column, y = row.
     cellMatrix :: Array (Int, Int) Cell,
+    -- | Direction of spilling
+    spillDir :: [Char],
+    -- | Location of the spawning point of sand
+    spawnLoc :: (Int, Int),
     -- | Which keys are pressed
     keys :: S.Set Key
   }
@@ -140,38 +146,66 @@ fillCellsNew grid = toList (fmap rectOnCell (cellMatrix grid))
 
 -- Cell Logic. {{{
 
--- | Make the cell spill
+-- | Spill cell left then right
 spill :: State -> State
-spill state = state{cellMatrix = A.genArray (bounds arr) spillCell}
+spill state
+  | spillDir state == "left" = (spillLeft state){spillDir = "right"}
+  | spillDir state == "right" = (spillRight state){spillDir = "left"}
+  | otherwise = error "String must be of value left or right"
+
+-- | Spill cell left.
+spillLeft :: State -> State
+spillLeft state = state{cellMatrix = A.genArray (bounds arr) spillCell}
   where
     arr = cellMatrix state
     inBounds' = inBounds arr
-    ((minX, minY), (maxX, maxY)) = bounds arr
+    ((minX, minY), (maxX, _)) = bounds arr
     spillCell :: (Int, Int) -> Cell
     spillCell (x, y)
       | inBounds' x && not value && rightBlock = (point, True)
-      | x == 0 && not value && rightBlock = (point, True)
-      | y > 0 && inRange (minX + 2, maxX - 2) x && value && valueBelow && not valueLeftBelow && not valueLeftLeftBelow = (point, False)
-      -- \| y > 0 &&  x && value && valueBelow && not valueLeftBelow && not valueLeftLeftBelow = (point, False)
-      -- \| y > 0 && x == 0 && inBounds' x && value && valueBelow && not valueLeftBelow && not valueLeftLeftBelow = (point, False)
-      -- \| inBounds' x && not value && leftBlock = (point, True)
+      | y > minY && inRange (minX + 2, maxX - 2) x && value && valueBelow && not valueLeftBelow && not valueLeftLeftBelow = (point, False)
+      | x == minX && not value && rightBlock = (point, True)
+      | y > minY && x == minX + 1 && value && valueBelow && not valueLeftBelow = (point, False)
       | otherwise = (point, value)
       where
         rightBlock = valueRight && valueRightAbove
+
+        (point, value) = arr ! (x, y)
+
+        (_, valueBelow) = arr ! (x, y - 1)
+
+        (_, valueRight) = arr ! (x + 1, y)
+        (_, valueRightAbove) = arr ! (x + 1, y + 1)
+
+        (_, valueLeftBelow) = arr ! (x - 1, y - 1)
+        (_, valueLeftLeftBelow) = arr ! (x - 2, y - 1)
+
+-- | Spill cell left.
+spillRight :: State -> State
+spillRight state = state{cellMatrix = A.genArray (bounds arr) spillCell}
+  where
+    arr = cellMatrix state
+    inBounds' = inBounds arr
+    ((minX, minY), (maxX, _)) = bounds arr
+    spillCell :: (Int, Int) -> Cell
+    spillCell (x, y)
+      | inBounds' x && not value && leftBlock = (point, True)
+      | y > minY && inRange (minX + 2, maxX - 2) x && value && valueBelow && not valueRightBelow && not valueRightRightBelow = (point, False)
+      | x == maxX && not value && leftBlock = (point, True)
+      | y > minY && x == maxX - 1 && value && valueBelow && not valueRightBelow = (point, False)
+      | otherwise = (point, value)
+      where
         leftBlock = valueLeft && valueLeftAbove
 
         (point, value) = arr ! (x, y)
 
         (_, valueBelow) = arr ! (x, y - 1)
-        (_, valueAbove) = arr ! (x, y + 1)
 
-        (_, valueRight) = arr ! (x + 1, y)
-        (_, valueRightAbove) = arr ! (x + 1, y + 1)
+        (_, valueRightBelow) = arr ! (x + 1, y - 1)
+        (_, valueRightRightBelow) = arr ! (x + 2, y - 1)
 
         (_, valueLeft) = arr ! (x - 1, y)
         (_, valueLeftAbove) = arr ! (x - 1, y + 1)
-        (_, valueLeftBelow) = arr ! (x - 1, y - 1)
-        (_, valueLeftLeftBelow) = arr ! (x - 2, y - 1)
 
 -- | Make the cell fall
 fall :: State -> State
@@ -215,14 +249,22 @@ handleInput (EventKey (Char 'h') Down _ _) game =
   game{keys = S.insert (Char 'h') (keys game)}
 handleInput (EventKey (Char 'h') Up _ _) game =
   game{keys = S.delete (Char 'h') (keys game)}
+
 handleInput (EventKey (Char 'j') Down _ _) game =
   game{keys = S.insert (Char 'j') (keys game)}
 handleInput (EventKey (Char 'j') Up _ _) game =
   game{keys = S.delete (Char 'j') (keys game)}
+
 handleInput (EventKey (Char 'k') Down _ _) game =
   game{keys = S.insert (Char 'k') (keys game)}
 handleInput (EventKey (Char 'k') Up _ _) game =
   game{keys = S.delete (Char 'k') (keys game)}
+
+handleInput (EventKey (Char 'h') Down _ _) game =
+  game{keys = S.insert (Char 'h') (keys game)}
+handleInput (EventKey (Char 'h') Up _ _) game =
+  game{keys = S.delete (Char 'h') (keys game)}
+
 -- Do nothing for all other events.
 handleInput _ game = game
 
