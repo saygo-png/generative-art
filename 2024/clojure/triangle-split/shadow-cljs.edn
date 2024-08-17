@@ -1,0 +1,12 @@
+;; shadow-cljs configuration
+{:builds {:triangle {:target :browser,
+                     :output-dir "public/js",
+                     :asset-path "/js",
+                     :modules {:main ;; <- becomes public/js/main.js
+                                 {:entries [triangle.core]}},
+                     ;; start a development http server on
+                     ;; http://localhost:8020
+                     :devtools {:http-port 8020, :http-root "public"}}},
+ :dependencies [[quil "3.1.0"] [net.mikera/core.matrix "0.63.0"]],
+ :source-paths ["src"]}
+
