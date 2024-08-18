@@ -84,12 +84,6 @@ def midpoint(a: Point, b: Point) -> Point:
 
 def normal(a: Point, b: Point) -> Point:
   ortho = np.array((b.y - a.y, a.x - b.x))
-  print("b.y:", b.y)
-  print("a.y:", a.y)
-  print("--")
-  print("a.x:", a.x)
-  print("b.x:", b.x)
-  print("ortho:", ortho)
   return Point(*(ortho / np.linalg.norm(ortho)))
 
 def perpendicular_line(a: Point, b: Point, length: float) -> Line:
