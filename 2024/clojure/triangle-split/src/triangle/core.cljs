@@ -63,27 +63,31 @@
     (Point (+ (:x midpoint') (:x scaled-normal))
            (+ (:y midpoint') (:y scaled-normal)))))
 
-; Your goal is to recursively split a side into triangles with a specified
-; depth
-; a side is 2 :x :y points. There is a function split-side which takes
-; p1, p2 and peak-length and outputs a vector of 2 new sides that need to be
-; split
-
 (defn split-side
   [x1 y1 x2 y2 length]
   (let [p1 (Point x1 y1)
         p2 (Point x2 y2)
         perp-point-scaled (perpendicular-point p1 p2 length)]
-    (vec (extract-values [p1 perp-point-scaled p2 perp-point-scaled]))))
+    (vec (extract-values [p1 p2 perp-point-scaled]))))
 
-(defn split-sides
-  [sides length]
-  (mapcat (fn [[x1 y1 x2 y2]] (split-side x1 y1 x2 y2 length)) (partition 4 sides)))
+(defn split-triangles
+  [triangles length]
+  (concat
+    (concat
+      triangles
+      (mapcat
+        (fn [[x1 y1 x2 y2 x3 y3]] (split-side x1 y1 x3 y3 length))
+        (partition 6 triangles)))
+    (concat
+      triangles
+      (mapcat
+        (fn [[x1 y1 x2 y2 x3 y3]] (split-side x3 y3 x2 y2 length))
+        (partition 6 triangles)))))
 
 (defn split-recursively
   [sides peak-length recursion-depth]
   (if (zero? recursion-depth)
-    (split-sides sides peak-length)
+    (split-triangles sides peak-length)
     (split-recursively sides peak-length (dec recursion-depth))))
 
 (defn draw-state
@@ -91,7 +95,7 @@
   ; Clear the sketch by filling it with light-grey color.
   (q/background 255)
   ; Set circle color.
-  (q/fill (:color state) 255 255)
+  (q/fill (:color state) 255 255 100)
   ; Calculate x and y coordinates of the circle. Draw the edge.
   (let [p1 (Point 250 150)
         p2 (Point 250 350)
@@ -109,14 +113,31 @@
     ; (unpack q/line [mid ortho])
     ; (unpack q/line [mid normal])
     (unpack q/triangle [triangle])
-    (mapcat (fn [[x1 y1 x2 y2]] (q/line x1 y1 x2 y2)) (partition 4 (split-side 250 150 250 350 100)))))
+    (mapcat (fn [[x1 y1 x2 y2 x3 y3]] (q/triangle x1 y1 x2 y2 x3 y3)) (partition 6 (split-triangles (split-triangles (split-triangles (split-side 250 150 250 350 100) 30) 100) 300)))))
 
 (comment
   (ccml/norm (vec-vals (ortho (Point 250 150) (Point 250 350))))
   (split-recursively [(Point 250 150) (Point 250 350)] 30 8)
   (mapcat (fn [[x1 y1 x2 y2]] (split-side x1 y1 x2 y2 30)) (partition 4 (split-side 250 150 250 350 30)))
-  (split-sides (split-sides (split-side 250 150 250 350 30) 30)30)
-  (map (fn [[p1 p2]] (ccml/norm (vec-vals p1))) (vec [(vec [(Point 250 150) (Point 250 350)]) (vec [(Point 250 150) (Point 250 350)])])))
+  (split-triangles (split-triangles (split-side 250 150 250 350 30) 30)30)
+  (map (fn [[p1 p2]] (ccml/norm (vec-vals p1))) (vec [(vec [(Point 250 150) (Point 250 350)]) (vec [(Point 250 150) (Point 250 350)])]))
+  
+  (let [triangles (split-triangles (split-side 250 150 250 350 30) 30)
+        length 30]
+    (concat
+      (concat
+        triangles
+        (mapcat
+          (fn [[x1 y1 x2 y2 x3 y3]] (split-side x1 y1 x3 y3 length))
+          (partition 6 triangles)))
+      (concat
+        triangles
+        (mapcat
+          (fn [[x1 y1 x2 y2 x3 y3]] (split-side x3 y3 x2 y2 length))
+          (partition 6 triangles))))))
+  
+  
+
 
 ; this function is called in index.html
 (defn ^:export run-sketch
