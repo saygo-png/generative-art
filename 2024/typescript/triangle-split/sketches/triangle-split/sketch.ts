@@ -92,7 +92,8 @@ function draw() {
 
   const recursions = ((value: string | number): number => {
     if (typeof value === "string") {
-      throw new TypeError("This is not a number, imbecile");
+      console.log("got a string, and thats wrong");
+      return 5;
     }
     return value;
   })(recursions_slider.value());
