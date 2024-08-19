@@ -11,8 +11,6 @@
   (q/frame-rate 144)
   ; Set color mode to HSB (HSV) instead of default RGB.
   (q/color-mode :hsb)
-  (q/random-seed 1)
-  (q/background 255)
   (q/stroke 140)
   (q/stroke-weight 2)
   (q/rect-mode :center)
@@ -22,7 +20,6 @@
 
 (defn update-state
   [state]
-  ; Update sketch state by changing circle color and position.
   {:color (mod (+ (:color state) 0.7) 255), :angle (+ (:angle state) 0.1)})
 
 
@@ -42,17 +39,12 @@
   [p1 p2]
   (Point (/ (+ (:x p1) (:x p2)) 2) (/ (+ (:y p1) (:y p2)) 2)))
 
-(defn ortho [p1 p2] (Point (- (:y p2) (:y p1)) (- (:x p1) (:x p2))))
-
 (defn vec-vals [list] (vec (vals list)))
-
-(defn split-at-vec [idx v]
-    [(subvec v 0 idx) (subvec v idx)])
 
 (defn normal
   [p1 p2]
-  (let [ortho' (ortho p1 p2)
-        ortho-norm (ccml/norm (vec-vals (ortho p1 p2)))]
+  (let [ortho' (Point (- (:y p2) (:y p1)) (- (:x p1) (:x p2)))
+        ortho-norm (ccml/norm (vec-vals ortho'))]
     (Point (/ (:x ortho') ortho-norm) (/ (:y ortho') ortho-norm))))
 
 (defn perpendicular-point
@@ -63,76 +55,23 @@
     (Point (+ (:x midpoint') (:x scaled-normal))
            (+ (:y midpoint') (:y scaled-normal)))))
 
-(defn split-side
-  [x1 y1 x2 y2 length]
-  (let [p1 (Point x1 y1)
-        p2 (Point x2 y2)
-        perp-point-scaled (perpendicular-point p1 p2 length)]
-    (vec (extract-values [x1 y1 x2 y2 perp-point-scaled]))))
 
-(defn split-triangles
-  [triangles length]
-  (concat
-    (concat
-      triangles
-      (mapcat
-        (fn [[x1 y1 x2 y2 x3 y3]] (split-side x1 y1 x3 y3 length))
-        (partition 6 triangles))
-      (mapcat
-        (fn [[x1 y1 x2 y2 x3 y3]] (split-side x1 y1 x3 y3 length))
-        (partition 6 triangles)))))
-; (defn split-recursively
-;   [sides peak-length recursion-depth]
-;   (if (zero? recursion-depth)
-;     (split-triangles sides peak-length)
-;     (split-recursively sides peak-length (dec recursion-depth))))
+(defn split-recursively
+  [p1 p2 peak-length recursion-depth]
+  (let [endpoint (perpendicular-point p1 p2 peak-length)
+        basecase-triangle (Triangle p1 p2 endpoint)]
+    (if (zero? recursion-depth)
+      [basecase-triangle]
+      (concat
+        [basecase-triangle]
+        (split-recursively p1 endpoint peak-length (dec recursion-depth))
+        (split-recursively endpoint p2 peak-length (dec recursion-depth))))))
 
-(defn draw-state
-  [state]
-  ; Clear the sketch by filling it with light-grey color.
-  (q/background 255)
-  ; Set circle color.
-  (q/fill (:color state) 255 255 100)
-  ; Calculate x and y coordinates of the circle. Draw the edge.
-  (let [p1 (Point 250 150)
-        p2 (Point 250 350)
-        mid (midpoint p1 p2)
-        triangle (Triangle p1 p2 mid)
-        ortho (ortho p1 p2)
-        normal (normal p1 p2)
-        perp-point (perpendicular-point p1 p2 200)]
-    (unpack (partial q/text p1) p1)
-    (unpack (partial q/text p2) p2)
-    (unpack (partial q/text mid) mid)
-    ; (unpack (partial q/text normal) normal)
-    (unpack (partial q/text perp-point) perp-point)
-    (unpack q/line [mid perp-point])
-    ; (unpack q/line [mid ortho])
-    ; (unpack q/line [mid normal])
-    (unpack q/triangle [triangle])
-    (mapcat (fn [[x1 y1 x2 y2 x3 y3]] (q/triangle x1 y1 x2 y2 x3 y3)) (distinct (partition 6 (split-triangles (split-triangles [250 150 250 350 250 350] 100) 220))))))
 
-(comment
-  (ccml/norm (vec-vals (ortho (Point 250 150) (Point 250 350))))
-  (mapcat (fn [[x1 y1 x2 y2]] (split-side x1 y1 x2 y2 30)) (partition 4 (split-side 250 150 250 350 30)))
-  (split-triangles (split-triangles (split-side 250 150 250 350 30) 30)30)
-  (map (fn [[p1 p2]] (ccml/norm (vec-vals p1))) (vec [(vec [(Point 250 150) (Point 250 350)]) (vec [(Point 250 150) (Point 250 350)])]))
+(defn draw-state [state] 
+  (q/background 0 0 16)
+  (q/fill (:color state) 255 255 100))
   
-  (let [triangles (split-triangles (split-side 250 150 250 350 30) 30)
-        length 30]
-    (distinct 
-      (partition 6
-        (concat
-          (concat
-            triangles
-            (mapcat
-              (fn [[x1 y1 x2 y2 x3 y3]] (split-side x1 y1 x3 y3 length))
-              (partition 6 triangles)))
-          (concat
-            triangles
-            (mapcat
-              (fn [[x1 y1 x2 y2 x3 y3]] (split-side x3 y3 x2 y2 length))
-              (partition 6 triangles))))))))
 
 ; this function is called in index.html
 (defn ^:export run-sketch
@@ -150,4 +89,3 @@
                ; wiki for more info about middlewares and particularly
                ; fun-mode.
                :middleware [m/fun-mode]))
-
