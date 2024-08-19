@@ -68,7 +68,7 @@
   (let [p1 (Point x1 y1)
         p2 (Point x2 y2)
         perp-point-scaled (perpendicular-point p1 p2 length)]
-    (vec (extract-values [p1 p2 perp-point-scaled]))))
+    (vec (extract-values [x1 y1 x2 y2 perp-point-scaled]))))
 
 (defn split-triangles
   [triangles length]
@@ -77,18 +77,15 @@
       triangles
       (mapcat
         (fn [[x1 y1 x2 y2 x3 y3]] (split-side x1 y1 x3 y3 length))
-        (partition 6 triangles)))
-    (concat
-      triangles
+        (partition 6 triangles))
       (mapcat
-        (fn [[x1 y1 x2 y2 x3 y3]] (split-side x3 y3 x2 y2 length))
+        (fn [[x1 y1 x2 y2 x3 y3]] (split-side x1 y1 x3 y3 length))
         (partition 6 triangles)))))
-
-(defn split-recursively
-  [sides peak-length recursion-depth]
-  (if (zero? recursion-depth)
-    (split-triangles sides peak-length)
-    (split-recursively sides peak-length (dec recursion-depth))))
+; (defn split-recursively
+;   [sides peak-length recursion-depth]
+;   (if (zero? recursion-depth)
+;     (split-triangles sides peak-length)
+;     (split-recursively sides peak-length (dec recursion-depth))))
 
 (defn draw-state
   [state]
@@ -113,31 +110,29 @@
     ; (unpack q/line [mid ortho])
     ; (unpack q/line [mid normal])
     (unpack q/triangle [triangle])
-    (mapcat (fn [[x1 y1 x2 y2 x3 y3]] (q/triangle x1 y1 x2 y2 x3 y3)) (partition 6 (split-triangles (split-triangles (split-triangles (split-side 250 150 250 350 100) 30) 100) 300)))))
+    (mapcat (fn [[x1 y1 x2 y2 x3 y3]] (q/triangle x1 y1 x2 y2 x3 y3)) (distinct (partition 6 (split-triangles (split-triangles [250 150 250 350 250 350] 100) 220))))))
 
 (comment
   (ccml/norm (vec-vals (ortho (Point 250 150) (Point 250 350))))
-  (split-recursively [(Point 250 150) (Point 250 350)] 30 8)
   (mapcat (fn [[x1 y1 x2 y2]] (split-side x1 y1 x2 y2 30)) (partition 4 (split-side 250 150 250 350 30)))
   (split-triangles (split-triangles (split-side 250 150 250 350 30) 30)30)
   (map (fn [[p1 p2]] (ccml/norm (vec-vals p1))) (vec [(vec [(Point 250 150) (Point 250 350)]) (vec [(Point 250 150) (Point 250 350)])]))
   
   (let [triangles (split-triangles (split-side 250 150 250 350 30) 30)
         length 30]
-    (concat
-      (concat
-        triangles
-        (mapcat
-          (fn [[x1 y1 x2 y2 x3 y3]] (split-side x1 y1 x3 y3 length))
-          (partition 6 triangles)))
-      (concat
-        triangles
-        (mapcat
-          (fn [[x1 y1 x2 y2 x3 y3]] (split-side x3 y3 x2 y2 length))
-          (partition 6 triangles))))))
-  
-  
-
+    (distinct 
+      (partition 6
+        (concat
+          (concat
+            triangles
+            (mapcat
+              (fn [[x1 y1 x2 y2 x3 y3]] (split-side x1 y1 x3 y3 length))
+              (partition 6 triangles)))
+          (concat
+            triangles
+            (mapcat
+              (fn [[x1 y1 x2 y2 x3 y3]] (split-side x3 y3 x2 y2 length))
+              (partition 6 triangles))))))))
 
 ; this function is called in index.html
 (defn ^:export run-sketch
