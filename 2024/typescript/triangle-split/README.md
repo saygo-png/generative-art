@@ -3,12 +3,11 @@
 ```
 npm install
 ```
-
+to run a sketch, ls /sketches/
+and then run
 ```
-npm run sketch helloworld
+npm run sketch <directory-in-sketches>
 ```
-
-To add a new sketch, just clone that directory.
 
 ### IMPORTANT: DO NOT USE IMPORTS
 
