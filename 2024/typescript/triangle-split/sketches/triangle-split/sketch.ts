@@ -1,4 +1,6 @@
 // GLOBAL VARS & TYPES {{{
+let recursions_slider: p5.Element;
+
 class Point {
   constructor(
     public x: number,
@@ -31,13 +33,6 @@ const edges = [
   [seedTriangle.p2, seedTriangle.p1],
 ];
 
-const widthBy2 = width / 2;
-const heightBy2 = height / 2;
-
-const recursions_slider: p5.Element = createSlider(1, 15, 5, 1)
-  .position(10, 10)
-  .style('background', 'green');
-// }}}
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function setup() {
   createCanvas(1000, 1000);
@@ -45,8 +40,11 @@ function setup() {
   stroke(40);
   strokeWeight(0);
   rectMode(CENTER);
+
+  recursions_slider = createSlider(1, 15, 5, 1).position(10, 10).style("width", "100px");
 }
 
+// }}}
 const midpoint = (p1: Point, p2: Point): Point =>
   new Point((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
 
@@ -88,7 +86,7 @@ function splitRecursively(
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function draw() {
   background(0, 0, 16);
-  translate(widthBy2, heightBy2);
+  translate(width/2, height/2);
   const recursions: number = parseInt(recursions_slider.value() as string);
   const mouse_len = (height - mouseY) / 8;
   const triangles = edges.flatMap(([p1, p2]: [Point, Point]) =>
