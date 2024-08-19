@@ -79,24 +79,25 @@ function splitRecursively(
   ];
 }
 
+const edges = [
+  [seedTriangle.p1, seedTriangle.p3],
+  [seedTriangle.p3, seedTriangle.p2],
+  [seedTriangle.p2, seedTriangle.p1],
+];
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function draw() {
   background(0, 0, 16);
   translate(width / 2, height / 2);
 
-  const recursions = ((value: string | number) => {
+  const recursions = ((value: string | number): number => {
     if (typeof value === "string") {
       throw new TypeError("This is not a number, imbecile");
     }
     return value;
   })(recursions_slider.value());
 
-  const edges = [
-    [seedTriangle.p1, seedTriangle.p3],
-    [seedTriangle.p3, seedTriangle.p2],
-    [seedTriangle.p2, seedTriangle.p1],
-  ];
-  const mouse_len = (height - mouseY) / 8
+  const mouse_len = (height - mouseY) / 8;
   const triangles = edges.flatMap(([p1, p2]: [Point, Point]) =>
     splitRecursively(p1, p2, mouse_len, recursions),
   );
