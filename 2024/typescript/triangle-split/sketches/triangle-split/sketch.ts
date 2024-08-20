@@ -1,5 +1,6 @@
 // GLOBAL VARS & TYPES {{{
 let recursions_slider: p5.Element;
+let hue_slider: p5.Element;
 
 class Point {
   constructor(
@@ -41,9 +42,11 @@ function setup() {
   strokeWeight(0);
   rectMode(CENTER);
 
-  recursions_slider = createSlider(1, 15, 5, 1).position(10, 10).style("width", "100px");
+  createP().position(10,height + 5).html('Recursions')
+  createP().position(10,height + 35).html('Hue')
+  recursions_slider = createSlider(1, 15, 5, 1).position(10, height + 20).size(width, 20);
+  hue_slider = createSlider(-180, 230, 0, 1).position(10, height + 50).size(width, 20);
 }
-
 // }}}
 const midpoint = (p1: Point, p2: Point): Point =>
   new Point((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
@@ -87,15 +90,16 @@ function splitRecursively(
 function draw() {
   background(0, 0, 16);
   translate(width/2, height/2);
-  const recursions: number = parseInt(recursions_slider.value() as string);
-  const mouse_len = (height - mouseY) / 8;
+  const recursions_param: number = parseInt(recursions_slider.value() as string);
+  const hue_param: number = parseInt(hue_slider.value() as string);
   const triangles = edges.flatMap(([p1, p2]: [Point, Point]) =>
-    splitRecursively(p1, p2, mouse_len, recursions)
+    splitRecursively(p1, p2, mouseY / 8, recursions_param)
   );
 
   const hueStep = 360 / triangles.length;
   triangles.forEach((triangle_, index) => {
-    const hue = (index * hueStep) / 2;
+    const hue = ((index * hueStep) / 2) + hue_param;
+    console.log(hue_param);
     fill(hue, 100, 100, 50);
     triangle(...triangle_.get());
   });
