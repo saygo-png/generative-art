@@ -1,0 +1,26 @@
+cabal-version:      3.0
+name:               real-sand-simulation
+version:            0.1.0.0
+synopsis:           Cellular automata of falling sand.
+-- description:
+license:            GPL-3.0-or-later
+license-file:       LICENSE
+author:             saygo-png
+maintainer:         saygo.mail@proton.me
+-- copyright:
+category:           Graphics
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+-- extra-source-files:
+
+common warnings
+    ghc-options: -Wall
+
+executable real-sand-simulation
+    import:           warnings
+    main-is:          Main.hs
+    ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+    other-extensions: AutoDeriveTypeable BangPatterns BinaryLiterals ConstraintKinds DataKinds DefaultSignatures DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable DoAndIfThenElse EmptyDataDecls ExistentialQuantification FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude OverloadedStrings PartialTypeSignatures PatternGuards PolyKinds RankNTypes RecordWildCards ScopedTypeVariables StandaloneDeriving TupleSections TypeFamilies TypeSynonymInstances ViewPatterns
+    build-depends:    base ^>=4.18.2.1, gloss, containers, array
+    hs-source-dirs:   app
+    default-language: GHC2021

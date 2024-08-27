@@ -1,0 +1,4 @@
+cradle:
+  cabal:
+    - path: "app/Main.hs"
+      component: "real-sand-simulation:exe:real-sand-simulation"

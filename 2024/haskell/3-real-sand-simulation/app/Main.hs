@@ -13,12 +13,12 @@ width, height, offset, fps :: Int
 width = 500
 height = width
 offset = 0
-fps = 3
+fps = 15
 
 initialState :: State
 initialState =
   MkState
-    { cellCount = 50,
+    { cellCount = 25,
       gap = 0,
       cellSize = widthF / cellCount initialState,
       cellMatrix = createCellWireNew initialState,
