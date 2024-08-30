@@ -245,3 +245,4 @@ pom.xml.asc
 **/.shadow-cljs
 **/cljs-runtime
 **/dist-newstyle
+**/references.kra
