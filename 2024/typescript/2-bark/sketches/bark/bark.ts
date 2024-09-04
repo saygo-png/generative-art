@@ -1,6 +1,7 @@
 // GLOBAL VARS & TYPES {{{
 let recursions_slider: p5.Element;
 let hue_slider: p5.Element;
+let randomQuads: Quad[];
 
 class Point {
   constructor(
@@ -31,36 +32,47 @@ class Quad {
     ];
   }
 }
+// }}}
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function setup() {
   createCanvas(1000, 1000);
   colorMode(HSB, 360, 100, 100, 100);
   stroke(40);
+  frameRate(1);
   fill(255);
   strokeWeight(0);
   rectMode(CENTER);
   randomSeed(1);
-  noLoop();
-}
-// }}}
-const midpoint = (p1: Point, p2: Point): Point =>
-  new Point((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
 
-function myNormal(p1: Point, p2: Point): Point {
-  const ortho = new Point(p2.y - p1.y, p1.x - p2.x);
-  const norm = Math.hypot(...ortho.get());
-  return new Point(ortho.x / norm, ortho.y / norm);
+  // randomQuads = generateRandomQuads(30, 10);
 }
 
-function endpoint(p1: Point, p2: Point, length: number): Point {
-  const midpoint_ = midpoint(p1, p2);
-  const unitVec = myNormal(p1, p2);
-  const scaledUnitVec = new Point(unitVec.x * length, unitVec.y * length);
-  return new Point(
-    midpoint_.x + scaledUnitVec.x,
-    midpoint_.y + scaledUnitVec.y,
-  );
+function getWidth(p1: Point, p2: Point): number {
+  return Math.abs(p2.x - p1.x);
+}
+
+function getHeight(p1: Point, p3: Point): number {
+  return Math.abs(p3.y - p1.y);
+}
+
+function doesOverlap(
+  checkRect: Quad,
+  rectangles: Quad[],
+  border: number,
+): boolean {
+  return rectangles.some((otherRect: Quad) => {
+    const checkRectWidth = getWidth(checkRect.p1, checkRect.p2);
+    const otherRectWidth = getWidth(otherRect.p1, otherRect.p2);
+    const checkRectHeight = getHeight(checkRect.p1, checkRect.p3);
+    const otherRectHeight = getHeight(otherRect.p1, otherRect.p3);
+    return (
+      checkRect.p1.x < otherRect.p1.x + otherRectWidth + border &&
+      checkRect.p1.x + checkRectWidth + border > otherRect.p1.x &&
+      checkRect.p1.y < otherRect.p1.y + otherRectHeight + border &&
+      checkRect.p1.y + checkRectHeight + border > otherRect.p1.y
+    );
+  });
 }
 
 function makeQuad(size: number, center: Point): Quad {
@@ -79,24 +91,45 @@ function makeQuad(size: number, center: Point): Quad {
   return new Quad(topLeft, topRight, bottomRight, bottomLeft);
 }
 
-function generateRandomQuads(amount: number): Quad[] {
+function generateRandomQuads(
+  amount: number,
+  border: number,
+  oldQuads: Quad[] = [],
+): Quad[] {
+  if (amount <= 0) {
+    return oldQuads;
+  }
   const randomPositionX = random(0, width);
   const randomPositionY = random(0, height);
   const randomSize = random(100, 300);
-  const baseCaseQuad = makeQuad(
+  const newQuad = makeQuad(
     randomSize,
     new Point(randomPositionX, randomPositionY),
   );
-  if (amount <= 0) {
-    return [baseCaseQuad];
+  if (doesOverlap(newQuad, oldQuads, border)) {
+    return generateRandomQuads(amount, border, oldQuads);
+  } else {
+    return generateRandomQuads(amount - 1, border, [...oldQuads, newQuad]);
   }
-  return [baseCaseQuad, ...generateRandomQuads(amount - 1)];
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function draw() {
   background(0, 0, 16);
+  fill(255);
   // translate(width / 2, height / 2);
-  const randomQuads = generateRandomQuads(20);
   randomQuads.forEach((quad_, index) => quad(...quad_.get()));
+
+  const randomPosX = random(0, width);
+  const randomPosY = random(0, height);
+  const testQuad = makeQuad(100, new Point(randomPosX, randomPosY));
+
+  fill(260, 100, 50, 100);
+  quad(...testQuad.get());
+  fill(255);
+
+  if (doesOverlap(testQuad, randomQuads, 30)) {
+    fill(360, 100, 50, 100);
+    quad(...testQuad.get());
+  }
 }
