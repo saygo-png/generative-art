@@ -33,25 +33,27 @@ initialState =
       spawnLoc = (5, 5),
       keys = S.empty,
       colors =
-        listArray
-          (0, 7)
-          [ (gDark1 255),
-            (gDark2 255),
-            (gDark3 255),
-            (gDark4 255),
-            (gLight5 255),
-            (gLight6 255),
-            (gLight7 255),
-            (gLight8 255)
-            -- gRed 255,
-            -- gOrange 255,
-            -- gYellow 255,
-            -- gGreen 255,
-            -- gCyan 255,
-            -- gBlue 255,
-            -- gPurple 255,
-            -- gBrown 255
-          ],
+        let colorsArray = [
+              {- ORMOLU_DISABLE -}
+                gDark1 255,
+                gDark2 255,
+                gDark3 255,
+                gDark4 255,
+                gLight5 255,
+                gLight6 255,
+                gLight7 255,
+                gLight8 255
+                -- gRed 255,
+                -- gOrange 255,
+                -- gYellow 255,
+                -- gGreen 255,
+                -- gCyan 255,
+                -- gBlue 255,
+                -- gPurple 255,
+                -- gBrown 255
+                {- ORMOLU_ENABLE -}
+              ]
+        in  listArray (0, length colorsArray - 1) colorsArray,
       colorIndex = 0
     }
 
