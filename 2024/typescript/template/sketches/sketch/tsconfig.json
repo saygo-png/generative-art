@@ -1,0 +1,4 @@
+{
+  "extends": "../../tsconfig.json.template",
+  "include": ["./", "../../external_libraries"]
+}
