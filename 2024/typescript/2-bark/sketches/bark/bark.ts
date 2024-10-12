@@ -45,7 +45,7 @@ function setup() {
   rectMode(CENTER);
   randomSeed(1);
 
-  // randomQuads = generateRandomQuads(30, 10);
+  randomQuads = generateRandomQuads(30, 10);
 }
 
 function getWidth(p1: Point, p2: Point): number {
@@ -117,7 +117,6 @@ function generateRandomQuads(
 function draw() {
   background(0, 0, 16);
   fill(255);
-  // translate(width / 2, height / 2);
   randomQuads.forEach((quad_, index) => quad(...quad_.get()));
 
   const randomPosX = random(0, width);
